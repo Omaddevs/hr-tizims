@@ -186,16 +186,54 @@ export interface HrRequest {
   organizationId?: string;
 }
 
-export interface HrTask {
+export type TaskStatus = "pending" | "in_progress" | "done" | "failed";
+
+export interface TaskSubItem {
   id: string;
   title: string;
+  done: boolean;
+  doneAt?: string;
+}
+
+export interface TaskComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  at: string;
+}
+
+export interface TaskFile {
+  id: string;
+  name: string;
+  size: string;
+}
+
+export interface HrTask {
+  id: string;
+  number: number;
+  title: string;
+  description?: string;
   due: string;
   dueLabel: string;
   priority: Priority;
+  status: TaskStatus;
   done: boolean;
   category: string;
   relatedId?: string;
   organizationId?: string;
+  /** Vazifani yaratgan HR foydalanuvchi */
+  ownerId?: string;
+  /** Mas'ul */
+  assigneeId?: string;
+  assigneeName?: string;
+  note?: string;
+  tags?: string[];
+  createdAt?: string;
+  archived?: boolean;
+  subtasks?: TaskSubItem[];
+  comments?: TaskComment[];
+  files?: TaskFile[];
 }
 
 export interface Activity {
@@ -285,7 +323,7 @@ export interface DocumentFile {
   employeeId: string;
   folder: string;
   name: string;
-  type: "PDF" | "DOCX" | "JPG" | "PNG";
+  type: "PDF" | "DOCX" | "JPG" | "PNG" | "XLSX";
   date: string;
   organizationId?: string;
 }

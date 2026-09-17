@@ -14,7 +14,9 @@ import type {
   LeaveRequest,
   LeaveType,
   NotificationItem,
+  Priority,
   RecruitmentStage,
+  TaskStatus,
   Ticket,
   User,
 } from "../types";
@@ -114,6 +116,41 @@ interface AppContextValue extends AppState {
   login: (email: string, password: string) => string | null;
   logout: () => void;
   markTask: (id: string, done: boolean) => void;
+  addTask: (input: {
+    title: string;
+    due: string;
+    priority: Priority;
+    category: string;
+    note?: string;
+    description?: string;
+    assigneeId?: string;
+    assigneeName?: string;
+    tags?: string[];
+  }) => string;
+  updateTask: (
+    id: string,
+    patch: Partial<
+      Pick<
+        HrTask,
+        | "title"
+        | "due"
+        | "dueLabel"
+        | "priority"
+        | "category"
+        | "note"
+        | "done"
+        | "status"
+        | "description"
+        | "assigneeId"
+        | "assigneeName"
+        | "tags"
+        | "archived"
+        | "subtasks"
+      >
+    >,
+  ) => void;
+  deleteTask: (id: string) => void;
+  toggleSubtask: (taskId: string, subId: string) => void;
   markNotificationRead: (id: string) => void;
   markAllRead: () => void;
   approveLeave: (id: string, status: ApprovalStatus, comment?: string) => void;
@@ -324,7 +361,137 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const markTask = useCallback((id: string, done: boolean) => {
-    setTasks((t) => t.map((x) => (x.id === id ? { ...x, done } : x)));
+    setTasks((t) =>
+      t.map((x) =>
+        x.id === id
+          ? { ...x, done, status: (done ? "done" : x.status === "done" ? "pending" : x.status) as TaskStatus }
+          : x,
+      ),
+    );
+  }, []);
+
+  const dueLabelFor = (due: string) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    if (due === today) return "Bugun";
+    if (due === tomorrow) return "Ertaga";
+    if (due < today) return "Kechikkan";
+    const d = new Date(due + "T12:00:00");
+    if (Number.isNaN(d.getTime())) return due;
+    return d.toLocaleDateString("uz-UZ", { day: "numeric", month: "short" });
+  };
+
+  const addTask = useCallback(
+    (input: {
+      title: string;
+      due: string;
+      priority: Priority;
+      category: string;
+      note?: string;
+      description?: string;
+      assigneeId?: string;
+      assigneeName?: string;
+      tags?: string[];
+    }) => {
+      if (!organizationId || !user) return "";
+      const id = `t-${Date.now()}`;
+      setTasks((t) => {
+        const number = Math.max(0, ...t.map((x) => x.number || 0)) + 1;
+        const task: HrTask = {
+          id,
+          number,
+          title: input.title.trim(),
+          description: input.description?.trim() || undefined,
+          due: input.due,
+          dueLabel: dueLabelFor(input.due),
+          priority: input.priority,
+          status: "pending",
+          done: false,
+          category: input.category.trim() || "HR",
+          note: input.note?.trim() || undefined,
+          ownerId: user.id,
+          assigneeId: input.assigneeId ?? user.id,
+          assigneeName: input.assigneeName ?? user.name,
+          tags: input.tags,
+          createdAt: new Date().toISOString().slice(0, 10),
+          organizationId,
+          subtasks: [],
+          comments: [],
+          files: [],
+        };
+        return [task, ...t];
+      });
+      return id;
+    },
+    [organizationId, user],
+  );
+
+  const updateTask = useCallback(
+    (
+      id: string,
+      patch: Partial<
+        Pick<
+          HrTask,
+          | "title"
+          | "due"
+          | "dueLabel"
+          | "priority"
+          | "category"
+          | "note"
+          | "done"
+          | "status"
+          | "description"
+          | "assigneeId"
+          | "assigneeName"
+          | "tags"
+          | "archived"
+          | "subtasks"
+        >
+      >,
+    ) => {
+      setTasks((list) =>
+        list.map((t) => {
+          if (t.id !== id) return t;
+          const next = { ...t, ...patch };
+          if (patch.due && patch.due !== t.due) next.dueLabel = dueLabelFor(patch.due);
+          if (patch.status === "done") next.done = true;
+          if (patch.done === true) next.status = "done";
+          if (patch.done === false && t.status === "done") next.status = "pending";
+          return next;
+        }),
+      );
+    },
+    [],
+  );
+
+  const deleteTask = useCallback((id: string) => {
+    setTasks((t) => t.filter((x) => x.id !== id));
+  }, []);
+
+  const toggleSubtask = useCallback((taskId: string, subId: string) => {
+    setTasks((list) =>
+      list.map((t) => {
+        if (t.id !== taskId || !t.subtasks) return t;
+        const subtasks = t.subtasks.map((s) => {
+          if (s.id !== subId) return s;
+          const done = !s.done;
+          return {
+            ...s,
+            done,
+            doneAt: done
+              ? new Date().toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" })
+              : undefined,
+          };
+        });
+        const allDone = subtasks.length > 0 && subtasks.every((s) => s.done);
+        return {
+          ...t,
+          subtasks,
+          done: allDone ? true : t.done,
+          status: allDone ? ("done" as TaskStatus) : t.status === "done" ? ("in_progress" as TaskStatus) : t.status,
+        };
+      }),
+    );
   }, []);
 
   const markNotificationRead = useCallback((id: string) => {
@@ -569,18 +736,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTasks((t) => [
         {
           id: `t-${Date.now()}`,
+          number: Math.max(0, ...t.map((x) => x.number || 0)) + 1,
           title: `Onboarding: ${cand.fullName}`,
           due: new Date().toISOString().slice(0, 10),
           dueLabel: "Bugun",
           priority: "high",
+          status: "pending",
           done: false,
           category: "Onboarding",
           organizationId,
+          ownerId: user?.id,
+          assigneeId: user?.id,
+          assigneeName: user?.name,
+          createdAt: new Date().toISOString().slice(0, 10),
         },
         ...t,
       ]);
     },
-    [candidates, employees.length, organizationId],
+    [candidates, employees.length, organizationId, user],
   );
 
   const addEmployee = useCallback((partial: Partial<Employee>) => {
@@ -637,19 +810,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTasks((t) => [
       {
         id: `t-${Date.now()}`,
+        number: Math.max(0, ...t.map((x) => x.number || 0)) + 1,
         title: `Onboarding: ${emp.fullName}`,
         due: new Date().toISOString().slice(0, 10),
         dueLabel: "Bugun",
         priority: "high",
+        status: "pending",
         done: false,
         category: "Onboarding",
         relatedId: id,
         organizationId: organizationId ?? ORG_IAU,
+        ownerId: user?.id,
+        assigneeId: user?.id,
+        assigneeName: user?.name,
+        createdAt: new Date().toISOString().slice(0, 10),
       },
       ...t,
     ]);
     return id;
-  }, [employees.length, organizationId]);
+  }, [employees.length, organizationId, user]);
 
   const addDepartment = useCallback((input: { name: string; type: Department["type"]; parentId?: string }) => {
     const id = `d-${Date.now()}`;
@@ -1023,6 +1202,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       markTask,
+      addTask,
+      updateTask,
+      deleteTask,
+      toggleSubtask,
       markNotificationRead,
       markAllRead,
       approveLeave,
@@ -1049,7 +1232,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       user, scopedEmployees, scopedDepartments, scopedLeaves, scopedRequests, scopedTasks, scopedNotes,
       scopedCandidates, scopedTickets, scopedAudit, chat, scopedAssignments, organization, userMemberships,
-      catalog, kpis, enabledModules, login, logout, markTask, markNotificationRead, markAllRead, approveLeave,
+      catalog, kpis, enabledModules, login, logout, markTask, addTask, updateTask, deleteTask, toggleSubtask, markNotificationRead, markAllRead, approveLeave,
       createLeave, updateLeave, approveRequest, createCertificate, moveCandidate, hireCandidate, addEmployee,
       addDepartment, updateEmployee, sendChat, createTicket, createAssignment, replyAssignment, setAssignmentStatus,
       markAssignmentRead, switchOrganization, can, hasModule, directoryUsers,

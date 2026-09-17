@@ -52,6 +52,13 @@ import {
 } from "./pages/Portal";
 import { ModuleHome, SelectOrgPage } from "./pages/SelectOrg";
 import { OrgSettingsPage, PlatformAdminPage } from "./pages/PlatformAdmin";
+import { RaxbariyatPage } from "./pages/Raxbariyat";
+import { OquvBolimiPage } from "./pages/OquvBolimi";
+import { KBuyruqlarPage } from "./pages/KBuyruqlar";
+import { PBuyruqlarPage } from "./pages/PBuyruqlar";
+import { NBuyruqlarPage } from "./pages/NBuyruqlar";
+import { ScanOrdersPage } from "./pages/ScanOrders";
+import { TasksPage, TaskTemplatesPage } from "./pages/Tasks";
 import type { ModuleKey } from "./core/types";
 
 function Gate() {
@@ -117,11 +124,23 @@ export default function App() {
           <Route path="pharmacy" element={<RequireModule module="pharmacy"><ModuleHome title="Apteka" subtitle="Dori, partiya, muddat" /></RequireModule>} />
           <Route path="employees" element={<RequireModule module="hr"><EmployeesPage /></RequireModule>} />
           <Route path="employees/:id" element={<RequireModule module="hr"><EmployeeProfilePage /></RequireModule>} />
+          <Route path="raxbariyat" element={<RequireModule module="hr"><RaxbariyatPage /></RequireModule>} />
+          <Route path="oquv-bolimi" element={<RequireModule module="hr"><OquvBolimiPage /></RequireModule>} />
           <Route path="onboarding" element={<RequireModule module="hr"><OnboardingPage /></RequireModule>} />
           <Route path="offboarding" element={<RequireModule module="hr"><OffboardingPage /></RequireModule>} />
           <Route path="org" element={<RequireModule module="hr"><OrgPage /></RequireModule>} />
           <Route path="org/positions" element={<RequireModule module="hr"><PositionsPage /></RequireModule>} />
           <Route path="org/:deptId" element={<RequireModule module="hr"><DepartmentPage /></RequireModule>} />
+          <Route path="journals/k-buyruqlar" element={<RequireModule module="hr"><KBuyruqlarPage /></RequireModule>} />
+          <Route path="journals/p-buyruqlar" element={<RequireModule module="hr"><PBuyruqlarPage /></RequireModule>} />
+          <Route path="journals/n-buyruqlar" element={<RequireModule module="hr"><NBuyruqlarPage /></RequireModule>} />
+          <Route path="journals/shartnomalar/soatbay" element={<RequireModule module="hr"><ModuleHome title="Soatbay" subtitle="Jurnallar · Shartnomalar" /></RequireModule>} />
+          <Route path="scan/k-buyruqlar" element={<RequireModule module="hr"><ScanOrdersPage kind="K" /></RequireModule>} />
+          <Route path="scan/p-buyruqlar" element={<RequireModule module="hr"><ScanOrdersPage kind="P" /></RequireModule>} />
+          <Route path="scan/n-buyruqlar" element={<RequireModule module="hr"><ScanOrdersPage kind="N" /></RequireModule>} />
+          <Route path="scan/shartnomalar/xodimlar" element={<RequireModule module="hr"><ModuleHome title="Xodimlar" subtitle="Skan · Shartnomalar" /></RequireModule>} />
+          <Route path="scan/shartnomalar/chet-el" element={<RequireModule module="hr"><ModuleHome title="Chet El Xodimlar" subtitle="Skan · Shartnomalar" /></RequireModule>} />
+          <Route path="scan/shartnomalar/cpx" element={<RequireModule module="hr"><ModuleHome title="CPX" subtitle="Skan · Shartnomalar" /></RequireModule>} />
           <Route path="recruitment" element={<RequireModule module="hr"><RecruitmentPage /></RequireModule>} />
           <Route path="recruitment/vacancies" element={<RequireModule module="hr"><VacanciesPage /></RequireModule>} />
           <Route path="payroll" element={<RequireModule module="finance"><PayrollPage /></RequireModule>} />
@@ -140,6 +159,9 @@ export default function App() {
           <Route path="reports" element={<RequireModule module="analytics"><ReportsPage /></RequireModule>} />
           <Route path="analytics" element={<RequireModule module="analytics"><AnalyticsPage /></RequireModule>} />
           <Route path="rector" element={<RequireModule module="analytics"><RectorPage /></RequireModule>} />
+          <Route path="tasks" element={<RequireModule module="hr"><TasksPage scope="mine" /></RequireModule>} />
+          <Route path="tasks/all" element={<RequireModule module="hr"><TasksPage scope="all" /></RequireModule>} />
+          <Route path="tasks/templates" element={<RequireModule module="hr"><TaskTemplatesPage /></RequireModule>} />
           <Route path="inbox" element={<RequireModule module="hr"><InboxPage /></RequireModule>} />
           <Route path="ai" element={<RequireModule module="hr"><AIPage /></RequireModule>} />
           <Route path="automation" element={<RequireModule module="hr"><AutomationPage /></RequireModule>} />

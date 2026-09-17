@@ -2,27 +2,25 @@ import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell,
+  BookOpen,
   Bot,
   Briefcase,
-  Building2,
   CalendarDays,
   ChevronDown,
-  ClipboardCheck,
   FolderOpen,
-  GraduationCap,
   Home,
-  Menu,
+  PanelLeft,
   MessageSquare,
+  ScanLine,
   Settings,
   Shield,
   Store,
   Users,
-  Wallet,
-  Workflow,
   X,
   FileBarChart,
   LogOut,
   Cross,
+  ClipboardList,
 } from "lucide-react";
 import { useApp } from "../store/AppContext";
 import { cn, roleLabel } from "../lib/utils";
@@ -33,14 +31,43 @@ import { OrgSwitcher } from "./OrgSwitcher";
 import { GlobalSearchBar } from "./GlobalSearchBar";
 import type { ModuleKey } from "../core/types";
 
+type NavChild = {
+  to?: string;
+  label: string;
+  end?: boolean;
+  module?: ModuleKey;
+  children?: NavChild[];
+};
+
 type NavItem = {
   to?: string;
   label: string;
   icon: typeof Home;
-  children?: { to: string; label: string; end?: boolean; module?: ModuleKey }[];
+  children?: NavChild[];
   roles?: string[];
   module?: ModuleKey;
 };
+
+function pathMatches(pathname: string, to?: string) {
+  if (!to) return false;
+  return pathname === to || pathname.startsWith(to + "/");
+}
+
+function childIsActive(pathname: string, child: NavChild): boolean {
+  if (pathMatches(pathname, child.to)) return true;
+  return child.children?.some((c) => childIsActive(pathname, c)) ?? false;
+}
+
+function filterNavChildren(children: NavChild[] | undefined, hasModule: (m: ModuleKey) => boolean): NavChild[] | undefined {
+  if (!children) return undefined;
+  return children
+    .filter((c) => !c.module || hasModule(c.module))
+    .map((c) => ({
+      ...c,
+      children: filterNavChildren(c.children, hasModule),
+    }))
+    .filter((c) => c.to || (c.children && c.children.length > 0));
+}
 
 const NAV: NavItem[] = [
   { to: "/", label: "Bosh sahifa", icon: Home },
@@ -53,19 +80,41 @@ const NAV: NavItem[] = [
     icon: Users,
     module: "hr",
     children: [
-      { to: "/employees", label: "Xodimlar bazasi" },
-      { to: "/onboarding", label: "Onboarding" },
-      { to: "/offboarding", label: "Offboarding" },
-      { to: "/requests", label: "So'rovlar / ticket" },
+      { to: "/raxbariyat", label: "Raxbariyat" },
+      { to: "/employees", label: "Xodimlar" },
+      { to: "/oquv-bolimi", label: "O'quv bo'limi" },
     ],
   },
   {
-    label: "Tashkiliy tuzilma",
-    icon: Building2,
+    label: "Jurnallar",
+    icon: BookOpen,
     module: "hr",
     children: [
-      { to: "/org", label: "Hierarchy" },
-      { to: "/org/positions", label: "Lavozimlar" },
+      { to: "/journals/k-buyruqlar", label: "K-buyruqlar" },
+      { to: "/journals/p-buyruqlar", label: "P-buyruqlar" },
+      { to: "/journals/n-buyruqlar", label: "N-buyruqlar" },
+      {
+        label: "Shartnomalar",
+        children: [{ to: "/journals/shartnomalar/soatbay", label: "Soatbay" }],
+      },
+    ],
+  },
+  {
+    label: "Skan",
+    icon: ScanLine,
+    module: "hr",
+    children: [
+      { to: "/scan/k-buyruqlar", label: "K-buyruqlar" },
+      { to: "/scan/p-buyruqlar", label: "P-buyruqlar" },
+      { to: "/scan/n-buyruqlar", label: "N-buyruqlar" },
+      {
+        label: "Shartnomalar",
+        children: [
+          { to: "/scan/shartnomalar/xodimlar", label: "Xodimlar" },
+          { to: "/scan/shartnomalar/chet-el", label: "Chet El Xodimlar" },
+          { to: "/scan/shartnomalar/cpx", label: "CPX" },
+        ],
+      },
     ],
   },
   {
@@ -75,15 +124,6 @@ const NAV: NavItem[] = [
     children: [
       { to: "/recruitment", label: "ATS / Pipeline" },
       { to: "/recruitment/vacancies", label: "Vakansiyalar" },
-    ],
-  },
-  {
-    label: "Mehnatga haq to'lash",
-    icon: Wallet,
-    module: "finance",
-    children: [
-      { to: "/payroll", label: "Ish haqi ma'lumoti" },
-      { to: "/payroll/benefits", label: "Benefits" },
     ],
   },
   {
@@ -98,21 +138,6 @@ const NAV: NavItem[] = [
       { to: "/attendance", label: "Davomat (istisnolar)" },
       { to: "/calendar", label: "HR kalendar" },
     ],
-  },
-  {
-    label: "KPI va baholash",
-    icon: ClipboardCheck,
-    module: "hr",
-    children: [
-      { to: "/performance", label: "Performance" },
-      { to: "/training", label: "O'qitish" },
-    ],
-  },
-  {
-    label: "O'qitish va rivojlantirish",
-    icon: GraduationCap,
-    module: "education",
-    children: [{ to: "/training", label: "Treninglar va sertifikatlar" }],
   },
   {
     label: "Hujjatlar",
@@ -134,8 +159,14 @@ const NAV: NavItem[] = [
       { to: "/rector", label: "Rektor dashboard" },
     ],
   },
-  { to: "/ai", label: "AI HR Copilot", icon: Bot, module: "hr" },
-  { to: "/automation", label: "Avtomatlashtirish", icon: Workflow, module: "hr" },
+  {
+    label: "Vazifalar",
+    icon: ClipboardList,
+    module: "hr",
+    children: [
+      { to: "/tasks", label: "Vazifalarim", end: true },
+    ],
+  },
   {
     label: "Sozlamalar",
     icon: Settings,
@@ -156,7 +187,6 @@ const NAV: NavItem[] = [
     ],
   },
 ];
-
 export function AppLayout() {
   const { user, logout, notifications, tasks, assignments, hasModule } = useApp();
   const [open, setOpen] = useState(true);
@@ -181,7 +211,7 @@ export function AppLayout() {
     return true;
   }).map((i) => ({
     ...i,
-    children: i.children?.filter((c) => !c.module || hasModule(c.module)),
+    children: filterNavChildren(i.children, hasModule),
   })).filter((i) => i.to || (i.children && i.children.length > 0));
 
   return (
@@ -201,7 +231,7 @@ export function AppLayout() {
           )}
         >
           <NavLink to="/" className="min-w-0" title="tizims.uz">
-            <Logo compact={!open} />
+            <Logo compact={!open} size={open ? 28 : 30} />
           </NavLink>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-4 pt-4">
@@ -209,6 +239,27 @@ export function AppLayout() {
             <NavGroup key={item.label} item={item} collapsed={!open} inboxBadge={item.to === "/inbox" ? unreadMail : 0} />
           ))}
         </nav>
+        {hasModule("hr") && (
+          <div className={cn("shrink-0 border-t border-slate-100 p-3", !open && "px-2")}>
+            <NavLink
+              to="/ai"
+              className={cn(
+                "flex items-center gap-3 rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50 to-white p-3 transition hover:border-brand-200 hover:shadow-sm",
+                !open && "justify-center p-2.5",
+              )}
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm">
+                <Bot className="h-4 w-4" />
+              </span>
+              {open && (
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-slate-800">AI yordamchi</span>
+                  <span className="block truncate text-[11px] text-slate-500">Savol bering, yordam oling</span>
+                </span>
+              )}
+            </NavLink>
+          </div>
+        )}
       </aside>
 
       <div className={cn("flex min-h-screen flex-col transition-all", open ? "lg:pl-[268px]" : "lg:pl-[76px]")}>
@@ -221,7 +272,7 @@ export function AppLayout() {
                 else setOpen((v) => !v);
               }}
             >
-              {mobile ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {mobile ? <X className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />}
             </button>
             <OrgSwitcher />
           </div>
@@ -320,7 +371,7 @@ function NotificationPanel() {
 
 function NavGroup({ item, collapsed, inboxBadge = 0 }: { item: NavItem; collapsed: boolean; inboxBadge?: number }) {
   const loc = useLocation();
-  const childActive = item.children?.some((c) => loc.pathname === c.to || loc.pathname.startsWith(c.to + "/"));
+  const childActive = item.children?.some((c) => childIsActive(loc.pathname, c));
   const [open, setOpen] = useState(!!childActive);
   const Icon = item.icon;
 
@@ -374,20 +425,60 @@ function NavGroup({ item, collapsed, inboxBadge = 0 }: { item: NavItem; collapse
       {open && !collapsed && item.children && (
         <div className="mb-1 ml-4 mt-0.5 space-y-0.5 border-l border-slate-100 pl-3">
           {item.children.map((c) => (
-            <NavLink
-              key={c.to}
-              to={c.to}
-              end={c.end}
-              className={({ isActive }) =>
-                cn("block rounded-lg px-3 py-1.5 text-[13px]", isActive ? "font-semibold text-brand-700" : "text-slate-500 hover:text-slate-800")
-              }
-            >
-              {c.label}
-            </NavLink>
+            <NavChildLink key={c.to ?? c.label} child={c} />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+function NavChildLink({ child }: { child: NavChild }) {
+  const loc = useLocation();
+  const nestedActive = child.children?.some((c) => childIsActive(loc.pathname, c));
+  const [open, setOpen] = useState(!!nestedActive);
+
+  useEffect(() => {
+    if (nestedActive) setOpen(true);
+  }, [nestedActive]);
+
+  if (child.children && child.children.length > 0) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className={cn(
+            "flex w-full items-center rounded-lg px-3 py-1.5 text-[13px]",
+            nestedActive ? "font-semibold text-brand-700" : "text-slate-500 hover:text-slate-800",
+          )}
+        >
+          <span className="flex-1 text-left">{child.label}</span>
+          <ChevronDown className={cn("h-3.5 w-3.5 transition", open && "rotate-180")} />
+        </button>
+        {open && (
+          <div className="mb-0.5 ml-2 mt-0.5 space-y-0.5 border-l border-slate-100 pl-2">
+            {child.children.map((c) => (
+              <NavChildLink key={c.to ?? c.label} child={c} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (!child.to) return null;
+
+  return (
+    <NavLink
+      to={child.to}
+      end={child.end}
+      className={({ isActive }) =>
+        cn("block rounded-lg px-3 py-1.5 text-[13px]", isActive ? "font-semibold text-brand-700" : "text-slate-500 hover:text-slate-800")
+      }
+    >
+      {child.label}
+    </NavLink>
   );
 }
 
